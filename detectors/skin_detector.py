@@ -64,10 +64,10 @@ def detect_face(img):
             bw = int(bbox.width * w)
             bh = int(bbox.height * h)
 
-            x1 = max(0, int(x + bw * 0.2))
-            x2 = min(w, int(x + bw * 0.8))
-            y1 = max(0, int(y + bh * 0.2))
-            y2 = min(h, int(y + bh * 0.8))
+            x1 = max(0, int(x + bw * 0.20))
+            x2 = min(w, int(x + bw * 0.80))
+            y1 = max(0, int(y + bh * 0.20))
+            y2 = min(h, int(y + bh * 0.80))
 
             face = img[y1:y2, x1:x2]
 
@@ -77,11 +77,55 @@ def detect_face(img):
     except Exception as e:
         print("Face error:", e)
 
-    return img
+    h, w, _ = img.shape
+
+    cx1 = int(w * 0.25)
+    cx2 = int(w * 0.75)
+    cy1 = int(h * 0.20)
+    cy2 = int(h * 0.75)
+
+    fallback = img[cy1:cy2, cx1:cx2]
+
+    if fallback.size > 100:
+        return fallback
+
+    return None
 
 
 # ==============================
-# FEATURE EXTRACTION (UPGRADE)
+# SKIN MASK
+# ==============================
+def get_skin_pixels(face):
+    ycrcb = cv2.cvtColor(face, cv2.COLOR_BGR2YCrCb)
+
+    lower = np.array([0, 125, 70], dtype=np.uint8)
+    upper = np.array([255, 180, 135], dtype=np.uint8)
+
+    mask = cv2.inRange(ycrcb, lower, upper)
+
+    kernel = np.ones((3, 3), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+
+    skin_pixels = face[mask > 0]
+
+    if len(skin_pixels) < 100:
+        h, w, _ = face.shape
+
+        x1 = int(w * 0.30)
+        x2 = int(w * 0.70)
+        y1 = int(h * 0.18)
+        y2 = int(h * 0.50)
+
+        center = face[y1:y2, x1:x2]
+
+        return center.reshape(-1, 3)
+
+    return skin_pixels
+
+
+# ==============================
+# FEATURE EXTRACTION
 # ==============================
 def extract_features(img):
     face = detect_face(img)
@@ -89,7 +133,15 @@ def extract_features(img):
     if face is None or face.size == 0:
         return None
 
-    lab = cv2.cvtColor(face, cv2.COLOR_BGR2LAB)
+    skin_pixels = get_skin_pixels(face)
+
+    if skin_pixels is None or len(skin_pixels) == 0:
+        return None
+
+    lab = cv2.cvtColor(
+        skin_pixels.reshape(-1, 1, 3),
+        cv2.COLOR_BGR2LAB
+    )
 
     L_channel = lab[:, :, 0].flatten()
     A_channel = lab[:, :, 1].flatten()
@@ -98,7 +150,7 @@ def extract_features(img):
     features = [
         np.mean(L_channel),
         np.std(L_channel),
-        np.median(L_channel),
+        np.percentile(L_channel, 10),
 
         np.mean(A_channel),
         np.std(A_channel),
@@ -142,15 +194,20 @@ def detect_skin_tone(image_path):
     img = cv2.imread(image_path)
 
     if img is None:
-        return "unknown"
+        return {
+            "tone": "unknown",
+            "undertone": "unknown"
+        }
 
     img = cv2.resize(img, (300, 300))
-    img = gray_world(img)
 
     feat = extract_features(img)
 
     if feat is None:
-        return "unknown"
+        return {
+            "tone": "unknown",
+            "undertone": "unknown"
+        }
 
     if model:
         try:
