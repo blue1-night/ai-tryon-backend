@@ -14,9 +14,11 @@ class Config:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
     OUTPUT_FOLDER = os.path.join(BASE_DIR, "outputs")
 
-    # 🔥 PENTING (SUDAH BENAR)
     STATIC_CLOTHING = os.path.join(BASE_DIR, "static", "clothing")
 
-    BASE_URL = os.environ.get("BASE_URL", "http://172.20.10.7:5000")
+    BASE_URL = os.environ.get(
+        "BASE_URL",
+        "https://ai-tryon-production.up.railway.app"
+    )
 
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024
