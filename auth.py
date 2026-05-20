@@ -33,7 +33,9 @@ def register():
         print("REGISTER DATA:", safe_log(data))
 
         if not data:
-            return jsonify({"msg": "Request body harus JSON"}), 400
+            return jsonify({
+                "msg": "Request body harus JSON"
+            }), 400
 
         username = data.get("username")
         password = data.get("password")
@@ -43,24 +45,31 @@ def register():
                 "msg": "Username dan password wajib diisi"
             }), 400
 
-        username = username.strip().lower()
+        username = username.strip()
 
         if username == "":
             return jsonify({
                 "msg": "Username tidak boleh kosong"
             }), 400
 
-        if User.query.filter_by(username=username).first():
+        existing_user = User.query.filter_by(username=username).first()
+
+        if existing_user:
             return jsonify({
                 "msg": "Username sudah terdaftar"
             }), 409
 
-        user = User(username=username)
+        user = User(
+            username=username,
+            role="user"
+        )
 
         try:
             user.set_password(password)
         except ValueError as e:
-            return jsonify({"msg": str(e)}), 400
+            return jsonify({
+                "msg": str(e)
+            }), 400
 
         db.session.add(user)
         db.session.commit()
@@ -105,11 +114,16 @@ def login():
                 "msg": "Username dan password wajib diisi"
             }), 400
 
-        username = username.strip().lower()
+        username = username.strip()
 
         user = User.query.filter_by(username=username).first()
 
-        if not user or not user.check_password(password):
+        if not user:
+            return jsonify({
+                "msg": "Username atau password salah"
+            }), 401
+
+        if not user.check_password(password):
             return jsonify({
                 "msg": "Username atau password salah"
             }), 401
@@ -126,6 +140,8 @@ def login():
                 "role": user.role
             }
         )
+
+        print("LOGIN SUCCESS:", user.username, user.role)
 
         return jsonify({
             "access_token": access_token,
@@ -165,7 +181,7 @@ def forgot_password():
                 "msg": "Username dan password baru wajib diisi"
             }), 400
 
-        username = username.strip().lower()
+        username = username.strip()
 
         if username == "":
             return jsonify({
@@ -182,7 +198,9 @@ def forgot_password():
         try:
             user.set_password(new_password)
         except ValueError as e:
-            return jsonify({"msg": str(e)}), 400
+            return jsonify({
+                "msg": str(e)
+            }), 400
 
         db.session.commit()
 
