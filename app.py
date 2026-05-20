@@ -8,6 +8,7 @@ from config import Config
 from models import db
 from auth import auth_bp
 from routes.admin_clothing import admin_clothing_bp
+from routes.tryon import tryon_bp
 from utils.recommender import recommend
 from utils.size_predictor import predict_size
 from body_shape.fusion import detect_body_shape
@@ -22,6 +23,7 @@ jwt = JWTManager(app)
 
 app.register_blueprint(auth_bp, url_prefix="/auth")
 app.register_blueprint(admin_clothing_bp)
+app.register_blueprint(tryon_bp)
 
 with app.app_context():
     db.create_all()
