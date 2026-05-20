@@ -18,7 +18,7 @@ class Config:
 
     BASE_URL = os.environ.get(
         "BASE_URL",
-        "https://ai-tryon-production.up.railway.app"
+        "http://103.55.38.102"
     )
 
     MAX_CONTENT_LENGTH = 20 * 1024 * 1024
