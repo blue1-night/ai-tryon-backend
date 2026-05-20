@@ -64,10 +64,10 @@ def detect_face(img):
             bw = int(bbox.width * w)
             bh = int(bbox.height * h)
 
-            x1 = max(0, int(x + bw * 0.20))
-            x2 = min(w, int(x + bw * 0.80))
-            y1 = max(0, int(y + bh * 0.20))
-            y2 = min(h, int(y + bh * 0.80))
+            x1 = max(0, int(x + bw * 0.18))
+            x2 = min(w, int(x + bw * 0.82))
+            y1 = max(0, int(y + bh * 0.12))
+            y2 = min(h, int(y + bh * 0.72))
 
             face = img[y1:y2, x1:x2]
 
@@ -81,8 +81,8 @@ def detect_face(img):
 
     cx1 = int(w * 0.25)
     cx2 = int(w * 0.75)
-    cy1 = int(h * 0.20)
-    cy2 = int(h * 0.75)
+    cy1 = int(h * 0.12)
+    cy2 = int(h * 0.60)
 
     fallback = img[cy1:cy2, cx1:cx2]
 
@@ -97,25 +97,39 @@ def detect_face(img):
 # ==============================
 def get_skin_pixels(face):
     ycrcb = cv2.cvtColor(face, cv2.COLOR_BGR2YCrCb)
+    lab = cv2.cvtColor(face, cv2.COLOR_BGR2LAB)
 
-    lower = np.array([0, 125, 70], dtype=np.uint8)
-    upper = np.array([255, 180, 135], dtype=np.uint8)
+    lower_ycrcb = np.array([0, 120, 70], dtype=np.uint8)
+    upper_ycrcb = np.array([255, 185, 145], dtype=np.uint8)
 
-    mask = cv2.inRange(ycrcb, lower, upper)
+    mask1 = cv2.inRange(ycrcb, lower_ycrcb, upper_ycrcb)
+
+    A = lab[:, :, 1]
+    B = lab[:, :, 2]
+
+    mask2 = ((A > 118) & (A < 175) & (B > 110) & (B < 185)).astype(np.uint8) * 255
+
+    mask = cv2.bitwise_or(mask1, mask2)
 
     kernel = np.ones((3, 3), np.uint8)
+
     mask = cv2.erode(mask, kernel, iterations=1)
-    mask = cv2.dilate(mask, kernel, iterations=1)
+    mask = cv2.dilate(mask, kernel, iterations=2)
+    mask = cv2.medianBlur(mask, 3)
 
     skin_pixels = face[mask > 0]
+
+    if len(skin_pixels) > 0:
+        brightness = np.mean(skin_pixels, axis=1)
+        skin_pixels = skin_pixels[brightness > 35]
 
     if len(skin_pixels) < 100:
         h, w, _ = face.shape
 
-        x1 = int(w * 0.30)
-        x2 = int(w * 0.70)
-        y1 = int(h * 0.18)
-        y2 = int(h * 0.50)
+        x1 = int(w * 0.25)
+        x2 = int(w * 0.75)
+        y1 = int(h * 0.10)
+        y2 = int(h * 0.45)
 
         center = face[y1:y2, x1:x2]
 
@@ -179,9 +193,9 @@ def detect_undertone(features):
 
     ratio = (B - A) / (abs(A) + abs(B) + 1e-6)
 
-    if ratio > 0.03:
+    if ratio > 0.02:
         return "warm"
-    elif ratio < -0.03:
+    elif ratio < -0.02:
         return "cool"
     else:
         return "neutral"
